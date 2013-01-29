@@ -193,13 +193,11 @@ module ETL #:nodoc:
         q << " ORDER BY #{order}" if order
         
         limit = ETL::Engine.limit
+        q << " LIMIT #{limit}" if limit
+
         offset = ETL::Engine.offset
-        if limit || offset
-          raise NoLimitSpecifiedError, "Specifying offset without limit is not allowed" if offset and limit.nil?
-          q << " LIMIT #{limit}"
-          q << " OFFSET #{offset}" if offset
-        end
-        
+        q << " OFFSET #{offset}" if offset
+
         q = q.gsub(/\n/,' ')
         ETL::Engine.logger.info "Query: #{q}"
         @query = q
