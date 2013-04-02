@@ -236,9 +236,15 @@ module ETL #:nodoc:
       @errors ||= []
     end
 
-    # First attempt at centralizing error notifications
-    def track_error(control, msg)
-      errors << msg
+    # Centralized error notifications
+    def track_error(control, msg, exception)
+      errors << exception
+
+      backtrace = if exception && exception.backtrace
+        exception.backtrace.join("\n")
+      end
+      self.class.logger.error("Exception(#{exception.inspect}): #{msg}\n#{backtrace}")
+
       control.error_handlers.each do |handler|
         handler.call(msg)
       end
@@ -360,10 +366,7 @@ module ETL #:nodoc:
               end
             rescue => e
               msg = "Error processing rows after read from #{Engine.current_source} on line #{Engine.current_source_row}: #{e}"
-              # TODO - track more information: row if possible, full exception...
-              track_error(control, msg)
-              Engine.logger.error(msg)
-              e.backtrace.each { |line| Engine.logger.error(line) }
+              track_error(control, msg, e)
               exceeded_error_threshold?(control) ? break : next
             end
           end
@@ -382,18 +385,15 @@ module ETL #:nodoc:
                 end
               end
             rescue ResolverError => e
-              Engine.logger.error(e.message)
-              track_error(control, e.message)
+              track_error(control, e.message, e)
             rescue => e
               msg = "Error transforming from #{Engine.current_source} on line #{Engine.current_source_row}: #{e}"
-              track_error(control, msg)
-              Engine.logger.error(msg)
-              e.backtrace.each { |line| Engine.logger.error(line) }
+              track_error(control, msg, e)
             ensure
               begin
                 exceeded_error_threshold?(control) ? break : next
               rescue => inner_error
-                puts inner_error
+                track_error(control, inner_error.message, inner_error)
               end
             end
           end
@@ -412,9 +412,7 @@ module ETL #:nodoc:
               end
             rescue => e
               msg = "Error processing rows before write from #{Engine.current_source} on line #{Engine.current_source_row}: #{e}"
-              track_error(control, msg)
-              Engine.logger.error(msg)
-              e.backtrace.each { |line| Engine.logger.error(line) }
+              track_error(control, msg, e)
               exceeded_error_threshold?(control) ? break : next
             end
           end
@@ -432,9 +430,7 @@ module ETL #:nodoc:
               end
             rescue => e
               msg = "Error writing to #{Engine.current_destination}: #{e}"
-              track_error(control, msg)
-              Engine.logger.error msg
-              e.backtrace.each { |line| Engine.logger.error(line) }
+              track_error(control, msg, e)
               exceeded_error_threshold?(control) ? break : next
             end
           end
