@@ -122,8 +122,8 @@ module ETL #:nodoc:
           conn = ETL::Engine.connection(target)
           conn.truncate(table_name) if truncate
           conn
-        rescue
-          raise RuntimeError, "Problem to connect to db"
+        rescue => e
+          raise RuntimeError, "Problem to connect to db: #{e.inspect}"
         end
       end
       
