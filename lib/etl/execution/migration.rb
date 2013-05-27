@@ -30,7 +30,7 @@ module ETL #:nodoc:
         
         # Get the connection to use during migration
         def connection
-          @connection ||= ETL::Execution::Base.connection
+          ETL::Execution::Base.connection
         end
         
         # Get the final target version number
